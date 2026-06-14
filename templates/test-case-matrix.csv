@@ -1,6 +1,14 @@
 ID,Folder,Endpoint,Method,Scenario,Input file/body,Expected status,Expected response check,Type,Pass/Fail,Evidence
-TC01,Functional,/health,GET,Service is alive,-,200,status=ok,functional,,
-TC02,Functional,/readings,POST,Create reading happy path,mock-data/sensor-reading-valid.json,201,"has reading_id, accepted=true",functional,,
-TC03,Negative,/readings,POST,Missing device_id,mock-data/sensor-reading-invalid-missing-device.json,400,Problem Details,negative,,
-TC04,Auth,/readings,POST,Missing token,mock-data/sensor-reading-valid.json,401,Problem Details,auth,,
-TC05,Boundary,/readings,POST,High temperature boundary,mock-data/sensor-reading-boundary.json,201/400,documented behavior,boundary,,
+TC01,01_Functional,/health,GET,Core policy service health,-,200,"status=ok, service present",functional,Pass,reports/newman-report.xml
+TC02,01_Functional,/access/check,POST,Allow decision for valid card credential,Inline JSON card access request,200,"decisionId, allow, reasonCode, gateId",functional,Pass,reports/newman-report.xml
+TC03,01_Functional,/policies/access,GET,List access policies with gate filter,-,200,"items array, hasMore flag",functional,Pass,reports/newman-report.xml
+TC04,01_Functional,/policies/access/{policyId},GET,Read policy detail,-,200,"policyId, allowedGateIds, allowedDirections present",functional,Pass,reports/newman-report.xml
+TC05,01_Functional,/decisions,GET,List recent access decisions,-,200,"items array, nextCursor",functional,Pass,reports/newman-report.xml
+TC06,02_Auth,/access/check,POST,Missing bearer token,Inline JSON card access request,"401/403 local, 200/401/403 mock","auth enforced locally; Prism limitation documented",auth,Pass,reports/newman-report.xml
+TC07,02_Auth,/access/check,POST,Invalid bearer token,Inline JSON card access request,"401/403 local, 200/401/403 mock","auth enforced locally; Prism limitation documented",auth,Pass,reports/newman-report.xml
+TC08,03_Negative,/access/check,POST,Missing gateId,Inline JSON missing gateId,400/422,"Problem Details title and client-error status",negative,Pass,reports/newman-report.xml
+TC09,03_Negative,/access/check,POST,Invalid direction enum,Inline JSON direction=SIDEWAYS,400/422,"Problem status in 4xx range",negative,Pass,reports/newman-report.xml
+TC10,04_Boundary_Reliability,/policies/access,GET,Limit upper boundary,limit=100,200,"items length <= 100",boundary,Pass,reports/newman-report.xml
+TC11,04_Boundary_Reliability,/access/check,POST,Duplicate idempotency conflict,Fixed Idempotency-Key,200/409,"Problem Details client-error status when conflict returned",reliability,Pass,reports/newman-report.xml
+TC12,05_Consumer_side_Smoke,/access/check,POST,Access Gate consumes Core policy decision,Inline JSON plate access request,200,"allow and expiresAt parseable",consumer-smoke,Pass,reports/newman-report.xml
+TC13,06_Local_only_NonFunctional,/health,GET,Local response time budget,-,"200 mock/local","local responseTime < 1000ms; skipped on mock",nonfunctional,Pass,reports/newman-report.xml

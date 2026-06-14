@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="FIT4110 Lab03 - Core Business Access Policy Tests" tests="13" time="0.090">
+  <testsuite name="01_Functional / GET /health - service is alive" id="1a14fe5a-d5a4-4bbc-99eb-d594be53bf72" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.024">
+    <testcase name="Status code is 200" time="0.024" classname="01FunctionalGetHealthServiceIsAlive"/>
+    <testcase name="Health response has status and service" time="0.024" classname="01FunctionalGetHealthServiceIsAlive"/>
+  </testsuite>
+  <testsuite name="01_Functional / POST /access/check - allow decision" id="06d9a518-307a-4263-8ea7-25fb707b5e10" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.006">
+    <testcase name="Status code is 200" time="0.006" classname="01FunctionalPostAccessCheckAllowDecision"/>
+    <testcase name="Decision response contains required business fields" time="0.006" classname="01FunctionalPostAccessCheckAllowDecision"/>
+  </testsuite>
+  <testsuite name="01_Functional / GET /policies/access - list policies" id="ab48009d-d0c8-4c90-a655-010cfa77873b" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Status code is 200" time="0.004" classname="01FunctionalGetPoliciesAccessListPolicies"/>
+    <testcase name="Policies response is paginated" time="0.004" classname="01FunctionalGetPoliciesAccessListPolicies"/>
+  </testsuite>
+  <testsuite name="01_Functional / GET /policies/access/{policyId} - policy detail" id="146a9a16-1a9a-4b18-8be4-51d041b38ea1" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.006">
+    <testcase name="Status code is 200" time="0.006" classname="01FunctionalGetPoliciesAccessPolicyIdPolicyDetail"/>
+    <testcase name="Policy detail contains gates and directions" time="0.006" classname="01FunctionalGetPoliciesAccessPolicyIdPolicyDetail"/>
+  </testsuite>
+  <testsuite name="01_Functional / GET /decisions - list recent decisions" id="60fd4d88-2b9b-4709-a506-7bb1d256b047" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Status code is 200" time="0.004" classname="01FunctionalGetDecisionsListRecentDecisions"/>
+    <testcase name="Decision list can be parsed" time="0.004" classname="01FunctionalGetDecisionsListRecentDecisions"/>
+  </testsuite>
+  <testsuite name="02_Auth / POST /access/check - missing token" id="d4cdfe58-464c-4be8-9a21-a4830c0cd967" timestamp="2026-06-14T14:41:13.725Z" tests="1" failures="0" errors="0" time="0.010">
+    <testcase name="Missing token is enforced on local service or documented as Prism limitation" time="0.010" classname="02AuthPostAccessCheckMissingToken"/>
+  </testsuite>
+  <testsuite name="02_Auth / POST /access/check - invalid token" id="220afe3e-d913-49c2-8ecb-a2ea1a8a1123" timestamp="2026-06-14T14:41:13.725Z" tests="1" failures="0" errors="0" time="0.005">
+    <testcase name="Invalid token is enforced on local service or documented as Prism limitation" time="0.005" classname="02AuthPostAccessCheckInvalidToken"/>
+  </testsuite>
+  <testsuite name="03_Negative / POST /access/check - missing gateId" id="812bae2f-1062-40dd-8093-bc24cc237185" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.005">
+    <testcase name="Invalid payload returns client error" time="0.005" classname="03NegativePostAccessCheckMissingGateId"/>
+    <testcase name="Error response follows Problem Details" time="0.005" classname="03NegativePostAccessCheckMissingGateId"/>
+  </testsuite>
+  <testsuite name="03_Negative / POST /access/check - invalid direction enum" id="16f87660-89a7-4dd9-9c7c-f546cba6974e" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.009">
+    <testcase name="Invalid enum returns 422 or 400" time="0.009" classname="03NegativePostAccessCheckInvalidDirectionEnum"/>
+    <testcase name="Problem status is client error" time="0.009" classname="03NegativePostAccessCheckInvalidDirectionEnum"/>
+  </testsuite>
+  <testsuite name="04_Boundary_Reliability / GET /policies/access - limit upper boundary" id="be967607-4e13-453d-af79-35dfa9b59f83" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Boundary limit is accepted" time="0.004" classname="04BoundaryReliabilityGetPoliciesAccessLimitUpperBoundary"/>
+    <testcase name="Returned page stays within limit" time="0.004" classname="04BoundaryReliabilityGetPoliciesAccessLimitUpperBoundary"/>
+  </testsuite>
+  <testsuite name="04_Boundary_Reliability / POST /access/check - duplicate idempotency conflict" id="a6c548aa-9fa8-4279-8602-ef3e0711b360" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Duplicate idempotency key can be reported as conflict" time="0.004" classname="04BoundaryReliabilityPostAccessCheckDuplicateIdempotencyConflict"/>
+    <testcase name="Conflict response is Problem Details when returned" time="0.004" classname="04BoundaryReliabilityPostAccessCheckDuplicateIdempotencyConflict"/>
+  </testsuite>
+  <testsuite name="05_Consumer_side_Smoke / Access Gate smoke - consume Core policy decision" id="75147d50-fd20-490d-ae97-cb1360d2844e" timestamp="2026-06-14T14:41:13.725Z" tests="2" failures="0" errors="0" time="0.005">
+    <testcase name="Consumer receives decision from provider mock" time="0.005" classname="05ConsumerSideSmokeAccessGateSmokeConsumeCorePolicyDecision"/>
+    <testcase name="Consumer can parse allow/deny and expiry" time="0.005" classname="05ConsumerSideSmokeAccessGateSmokeConsumeCorePolicyDecision"/>
+  </testsuite>
+  <testsuite name="06_Local_only_NonFunctional / GET /health - local response time budget" id="57305ca1-88da-46da-95a9-530e2fe02876" timestamp="2026-06-14T14:41:13.725Z" tests="1" failures="0" errors="0" time="0.004">
+    <testcase name="Latency SLA is skipped on Prism mock" time="0.004" classname="06LocalOnlyNonFunctionalGetHealthLocalResponseTimeBudget"/>
+  </testsuite>
+</testsuites>

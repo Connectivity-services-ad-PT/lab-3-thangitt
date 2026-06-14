@@ -20,16 +20,26 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Lint OpenAPI contract
+        run: npm run lint
 
       - name: Start Prism mock server
         run: |
-          nohup npm run mock:iot > prism.log 2>&1 &
-          sleep 5
-          cat prism.log
+          nohup npm run mock:core > prism.log 2>&1 &
+          npx wait-on http://localhost:4010/health --timeout 30000
 
       - name: Run Newman contract tests
         run: npm run test:mock
+
+      - name: Build HTML report
+        if: always()
+        run: npm run test:html || true
+
+      - name: Show Prism log on failure
+        if: failure()
+        run: cat prism.log || true
 
       - name: Upload Newman report
         uses: actions/upload-artifact@v4

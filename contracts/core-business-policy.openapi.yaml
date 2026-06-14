@@ -1,0 +1,635 @@
+openapi: 3.1.0
+info:
+  title: Smart Campus Access Policy API
+  version: 1.0.0
+  description: Contract-first OpenAPI 3.1.0 for Pair 10, Access Gate consuming Core Business policy decisions.
+  contact:
+    name: FIT4110 Pair 10
+    email: student.project@example.edu.vn
+servers:
+  - url: http://localhost:4010
+    description: Prism mock server
+  - url: https://core-business-api.campus.local/v1
+    description: Core Business staging
+tags:
+  - name: health
+    description: Service readiness endpoints.
+  - name: access-checks
+    description: Realtime policy checks requested by Access Gate.
+  - name: access-policies
+    description: Access policy reference data owned by Core Business.
+  - name: access-decisions
+    description: Stored access check decisions for audit and retry reconciliation.
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Check Core Business policy service health
+      description: Returns service status for Access Gate before realtime calls.
+      tags: [health]
+      security: []
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              examples:
+                ok:
+                  value:
+                    status: ok
+                    service: core-business-policy
+                    time: '2026-06-14T13:00:00Z'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /access/check:
+    post:
+      operationId: checkAccessPolicy
+      summary: Evaluate one access attempt
+      description: Access Gate sends card or license plate evidence and receives an allow or deny decision within the negotiated timeout.
+      tags: [access-checks]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessCheckRequest'
+            examples:
+              cardEntry:
+                value:
+                  gateId: GATE-01
+                  direction: ENTRY
+                  occurredAt: '2026-06-14T13:01:00Z'
+                  credential:
+                    credentialType: CARD
+                    cardId: CARD-2026-000123
+                  vehiclePlate: 51A-12345
+                  requestedByDeviceId: DEVICE-GATE-01
+              plateExit:
+                value:
+                  gateId: GATE-02
+                  direction: EXIT
+                  occurredAt: '2026-06-14T13:03:00Z'
+                  credential:
+                    credentialType: PLATE
+                    plateNumber: 30F-88888
+                  vehiclePlate: 30F-88888
+                  requestedByDeviceId: DEVICE-GATE-02
+      responses:
+        '200':
+          description: Decision returned for this access attempt.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessDecision'
+              examples:
+                allowed:
+                  value:
+                    decisionId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                    allow: true
+                    reasonCode: POLICY_MATCH
+                    policyId: POL-STAFF-PARKING
+                    gateId: GATE-01
+                    expiresAt: '2026-06-14T13:01:10Z'
+                    evaluatedAt: '2026-06-14T13:01:00Z'
+                    correlationId: req-20260614-0001
+                denied:
+                  value:
+                    decisionId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                    allow: false
+                    reasonCode: OUTSIDE_ALLOWED_WINDOW
+                    policyId: POL-VISITOR-DAYTIME
+                    gateId: GATE-02
+                    expiresAt: '2026-06-14T13:01:10Z'
+                    evaluatedAt: '2026-06-14T13:01:00Z'
+                    correlationId: req-20260614-0002
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /policies/access:
+    get:
+      operationId: listAccessPolicies
+      summary: List access policies
+      description: Returns active access policies with cursor-based pagination for Access Gate cache warm-up.
+      tags: [access-policies]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: gateId
+          in: query
+          required: false
+          description: Optional gate filter.
+          schema:
+            type: string
+            pattern: '^GATE-[0-9]{2}$'
+      responses:
+        '200':
+          description: Paginated access policies.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPolicyPage'
+              examples:
+                firstPage:
+                  value:
+                    items:
+                      - policyId: POL-STAFF-PARKING
+                        name: Staff parking entry
+                        status: ACTIVE
+                        allowedDirections: [ENTRY, EXIT]
+                        allowedGateIds: [GATE-01, GATE-02]
+                        validFrom: '2026-01-01T00:00:00Z'
+                        validUntil: '2026-12-31T23:59:59Z'
+                        updatedAt: '2026-06-14T12:30:00Z'
+                    nextCursor: end
+                    hasMore: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /policies/access/{policyId}:
+    get:
+      operationId: getAccessPolicyById
+      summary: Get one access policy
+      description: Returns policy detail referenced by a decision response.
+      tags: [access-policies]
+      parameters:
+        - $ref: '#/components/parameters/PolicyId'
+      responses:
+        '200':
+          description: Access policy detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPolicy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /decisions:
+    get:
+      operationId: listAccessDecisions
+      summary: List recent access decisions
+      description: Returns recent policy decisions with cursor-based pagination for reconciliation after retry or network interruption.
+      tags: [access-decisions]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: gateId
+          in: query
+          required: false
+          description: Optional gate filter.
+          schema:
+            type: string
+            pattern: '^GATE-[0-9]{2}$'
+      responses:
+        '200':
+          description: Paginated decisions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessDecisionPage'
+              examples:
+                recent:
+                  value:
+                    items:
+                      - decisionId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                        allow: true
+                        reasonCode: POLICY_MATCH
+                        policyId: POL-STAFF-PARKING
+                        gateId: GATE-01
+                        expiresAt: '2026-06-14T13:01:10Z'
+                        evaluatedAt: '2026-06-14T13:01:00Z'
+                        correlationId: req-20260614-0001
+                    nextCursor: end
+                    hasMore: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /decisions/{decisionId}:
+    get:
+      operationId: getAccessDecisionById
+      summary: Get one access decision
+      description: Returns the final decision by ID so Access Gate can reconcile retries and audit logs.
+      tags: [access-decisions]
+      parameters:
+        - $ref: '#/components/parameters/DecisionId'
+      responses:
+        '200':
+          description: Access decision detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessDecision'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+webhooks:
+  accessDecisionFinalized:
+    post:
+      operationId: onAccessDecisionFinalized
+      summary: Receive finalized access decision
+      description: Optional callback used when Core Business finalizes an audit decision after the realtime response.
+      tags: [access-decisions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessDecision'
+      responses:
+        '204':
+          description: Callback accepted.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique key for one gate swipe or retry sequence.
+      schema:
+        type: string
+        minLength: 12
+        maxLength: 80
+        pattern: '^[A-Za-z0-9._:-]+$'
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: true
+      description: Trace ID shared across Access Gate and Core Business.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 80
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor for pagination.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of returned records.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    PolicyId:
+      name: policyId
+      in: path
+      required: true
+      description: Access policy identifier.
+      schema:
+        type: string
+        pattern: '^POL-[A-Z0-9-]{3,50}$'
+    DecisionId:
+      name: decisionId
+      in: path
+      required: true
+      description: Decision UUID.
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required: [status, service, time]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        service:
+          type: string
+          minLength: 2
+          maxLength: 80
+        time:
+          type: string
+          format: date-time
+
+    AccessCheckRequest:
+      type: object
+      additionalProperties: false
+      required: [gateId, direction, occurredAt, credential, requestedByDeviceId]
+      properties:
+        gateId:
+          type: string
+          pattern: '^GATE-[0-9]{2}$'
+        direction:
+          $ref: '#/components/schemas/AccessDirection'
+        occurredAt:
+          type: string
+          format: date-time
+        credential:
+          $ref: '#/components/schemas/AccessCredential'
+        vehiclePlate:
+          type: string
+          minLength: 5
+          maxLength: 15
+          pattern: '^[0-9]{2}[A-Z]-[0-9]{4,5}$'
+        requestedByDeviceId:
+          type: string
+          pattern: '^DEVICE-GATE-[0-9]{2}$'
+
+    AccessCredential:
+      oneOf:
+        - $ref: '#/components/schemas/CardCredential'
+        - $ref: '#/components/schemas/PlateCredential'
+      discriminator:
+        propertyName: credentialType
+        mapping:
+          CARD: '#/components/schemas/CardCredential'
+          PLATE: '#/components/schemas/PlateCredential'
+
+    CardCredential:
+      type: object
+      additionalProperties: false
+      required: [credentialType, cardId]
+      properties:
+        credentialType:
+          type: string
+          const: CARD
+        cardId:
+          type: string
+          pattern: '^CARD-[0-9]{4}-[0-9]{6}$'
+
+    PlateCredential:
+      type: object
+      additionalProperties: false
+      required: [credentialType, plateNumber]
+      properties:
+        credentialType:
+          type: string
+          const: PLATE
+        plateNumber:
+          type: string
+          minLength: 5
+          maxLength: 15
+          pattern: '^[0-9]{2}[A-Z]-[0-9]{4,5}$'
+
+    AccessDecision:
+      type: object
+      additionalProperties: false
+      required: [decisionId, allow, reasonCode, policyId, gateId, expiresAt, evaluatedAt, correlationId]
+      properties:
+        decisionId:
+          type: string
+          format: uuid
+        allow:
+          type: boolean
+        reasonCode:
+          $ref: '#/components/schemas/DecisionReasonCode'
+        policyId:
+          type: string
+          pattern: '^POL-[A-Z0-9-]{3,50}$'
+        gateId:
+          type: string
+          pattern: '^GATE-[0-9]{2}$'
+        expiresAt:
+          type: string
+          format: date-time
+        evaluatedAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+          minLength: 8
+          maxLength: 80
+
+    AccessDecisionPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/AccessDecision'
+        nextCursor:
+          type: string
+          minLength: 1
+          maxLength: 200
+        hasMore:
+          type: boolean
+
+    AccessPolicy:
+      type: object
+      additionalProperties: false
+      required: [policyId, name, status, allowedDirections, allowedGateIds, validFrom, validUntil, updatedAt]
+      properties:
+        policyId:
+          type: string
+          pattern: '^POL-[A-Z0-9-]{3,50}$'
+        name:
+          type: string
+          minLength: 3
+          maxLength: 120
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, DEPRECATED]
+        allowedDirections:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/AccessDirection'
+        allowedGateIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^GATE-[0-9]{2}$'
+        validFrom:
+          type: string
+          format: date-time
+        validUntil:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AccessPolicyPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/AccessPolicy'
+        nextCursor:
+          type: string
+          minLength: 1
+          maxLength: 200
+        hasMore:
+          type: boolean
+
+    AccessDirection:
+      type: string
+      enum: [ENTRY, EXIT]
+
+    DecisionReasonCode:
+      type: string
+      enum:
+        - POLICY_MATCH
+        - UNKNOWN_CREDENTIAL
+        - POLICY_EXPIRED
+        - OUTSIDE_ALLOWED_WINDOW
+        - GATE_NOT_ALLOWED
+        - DUPLICATE_REQUEST
+        - DOWNSTREAM_UNAVAILABLE
+
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+          maxLength: 500
+        instance:
+          type: string
+          format: uri
+        errors:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, code, message]
+            properties:
+              field:
+                type: string
+                minLength: 1
+                maxLength: 80
+              code:
+                type: string
+                minLength: 2
+                maxLength: 80
+              message:
+                type: string
+                minLength: 3
+                maxLength: 200
+
+  responses:
+    BadRequest:
+      description: Request JSON or schema is invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            invalidJson:
+              value:
+                type: https://campus.local/errors/bad-request
+                title: Invalid request
+                status: 400
+                detail: gateId is required.
+                instance: https://core-business-api.campus.local/v1/access/check
+                errors:
+                  - field: gateId
+                    code: REQUIRED
+                    message: gateId is required.
+    Unauthorized:
+      description: Bearer token is missing, expired, or invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Authenticated client is not allowed to use this resource.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Resource was not found.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Idempotency key conflicts with a different request body.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnprocessableEntity:
+      description: Request is syntactically valid but violates business rules.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    InternalServerError:
+      description: Unexpected Core Business failure.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

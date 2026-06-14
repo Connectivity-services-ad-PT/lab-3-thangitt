@@ -4,7 +4,7 @@ install:
 	npm install
 
 mock:
-	npm run mock:iot
+	npm run mock:core
 
 test-mock:
 	npm run test:mock
