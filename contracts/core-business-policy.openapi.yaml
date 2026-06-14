@@ -259,25 +259,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
-webhooks:
-  accessDecisionFinalized:
-    post:
-      operationId: onAccessDecisionFinalized
-      summary: Receive finalized access decision
-      description: Optional callback used when Core Business finalizes an audit decision after the realtime response.
-      tags: [access-decisions]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AccessDecision'
-      responses:
-        '204':
-          description: Callback accepted.
-        '400':
-          $ref: '#/components/responses/BadRequest'
-
 components:
   securitySchemes:
     bearerAuth:

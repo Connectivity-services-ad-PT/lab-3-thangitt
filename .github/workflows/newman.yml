@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Install dependencies
         run: npm ci
@@ -28,7 +28,14 @@ jobs:
       - name: Start Prism mock server
         run: |
           nohup npm run mock:core > prism.log 2>&1 &
-          npx wait-on http://localhost:4010/health --timeout 30000
+          for i in {1..30}; do
+            if curl -fsS http://localhost:4010/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat prism.log
+          exit 1
 
       - name: Run Newman contract tests
         run: npm run test:mock
